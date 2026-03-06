@@ -5,6 +5,8 @@ import 'package:elearningapp_flutter/screens/read_screen.dart'
     show scienceBooks, spaceBooks, Book;
 import 'package:elearningapp_flutter/data/video_data.dart'
     show scienceLessons, ScienceLesson;
+import 'package:elearningapp_flutter/helpers/video_upload_helper.dart';
+import 'package:elearningapp_flutter/helpers/image_upload_helper.dart';
 
 /// Comprehensive Teacher Content Management Screen
 /// Allows teachers to Create, Read, Update, and Delete content for:
@@ -544,6 +546,18 @@ class _ReadContentManagementState extends State<ReadContentManagement> {
   List<Map<String, dynamic>> allBooks = [];
   bool _isLoading = true;
 
+  final List<Map<String, dynamic>> bookTopics = [
+    {'id': 'changes_of_matter', 'title': 'Changes of Matter', 'emoji': '🧪'},
+    {'id': 'water_cycle', 'title': 'Water Cycle', 'emoji': '💧'},
+    {'id': 'photosynthesis', 'title': 'Photosynthesis', 'emoji': '🌱'},
+    {'id': 'solar_system', 'title': 'Solar System', 'emoji': '🪐'},
+    {
+      'id': 'ecosystem_food_web',
+      'title': 'Ecosystem & Food Web',
+      'emoji': '🦁',
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -667,6 +681,10 @@ class _ReadContentManagementState extends State<ReadContentManagement> {
     await prefs.setString('modified_default_books', jsonEncode(modifiedBooks));
   }
 
+  // REPLACE the _showCreateBookDialog method in ReadContentManagement
+  // Add this import at the top of teacher_content_management_screen.dart:
+  // import 'package:elearningapp_flutter/helpers/image_upload_helper.dart';
+
   void _showCreateBookDialog({Map<String, dynamic>? existingBook, int? index}) {
     final isEdit = existingBook != null;
     final titleController = TextEditingController(
@@ -687,226 +705,467 @@ class _ReadContentManagementState extends State<ReadContentManagement> {
     final funFactController = TextEditingController(
       text: existingBook?['funFact'] ?? '',
     );
-    final imageController = TextEditingController(
-      text: existingBook?['image'] ?? 'lib/assets/book_default.png',
-    );
+
+    String selectedTopic = existingBook?['topic'] ?? 'changes_of_matter';
+    bool isUploading = false;
+    String uploadedImagePath = existingBook?['image'] ?? '';
 
     showDialog(
       context: context,
+      barrierDismissible: !isUploading,
       builder:
-          (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1C1F3E),
-            title: Text(
-              isEdit ? 'Edit Book' : 'Create New Book',
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: const Color(0xFF1C1F3E),
+                  title: Text(
+                    isEdit ? 'Edit Book' : 'Create New Book',
                     style: const TextStyle(color: Colors.white),
                   ),
-                  TextField(
-                    controller: summaryController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Summary',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: themeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Theme (e.g., Biology, Chemistry)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: authorController,
-                    decoration: const InputDecoration(
-                      labelText: 'Author',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: readTimeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Read Time (minutes)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: funFactController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Fun Fact',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF4CAF50).withOpacity(0.3),
-                      ),
-                    ),
+                  content: SingleChildScrollView(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.image,
-                              color: Color(0xFF4CAF50),
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Book Cover Image',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
                         TextField(
-                          controller: imageController,
+                          controller: titleController,
                           decoration: const InputDecoration(
-                            hintText: 'Enter image URL or file path',
-                            hintStyle: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
+                            labelText: 'Title',
+                            labelStyle: TextStyle(color: Colors.white70),
                             enabledBorder: UnderlineInputBorder(
                               borderSide: BorderSide(color: Colors.white54),
                             ),
                           ),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: summaryController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Summary',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+
+                        // Topic Dropdown
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.category,
+                                    color: Color(0xFF4CAF50),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Topic Category',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                value: selectedTopic,
+                                dropdownColor: const Color(0xFF1C1F3E),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2D4E),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                style: const TextStyle(color: Colors.white),
+                                items:
+                                    bookTopics.map((topic) {
+                                      return DropdownMenuItem<String>(
+                                        value: topic['id'] as String,
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              topic['emoji'] as String,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              topic['title'] as String,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    selectedTopic = value!;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Examples:\n• https://example.com/cover.jpg\n• lib/assets/images/book_cover.png',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 11,
-                            height: 1.4,
+
+                        TextField(
+                          controller: themeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Theme (e.g., Biology, Chemistry)',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: authorController,
+                          decoration: const InputDecoration(
+                            labelText: 'Author',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: readTimeController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Read Time (minutes)',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: funFactController,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Fun Fact',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+
+                        // BOOK COVER IMAGE SECTION - UPLOAD ONLY
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.image,
+                                    color: Color(0xFF4CAF50),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Book Cover Image',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Upload from Device Button
+                              ElevatedButton.icon(
+                                onPressed:
+                                    isUploading
+                                        ? null
+                                        : () async {
+                                          setDialogState(
+                                            () => isUploading = true,
+                                          );
+
+                                          String? imagePath =
+                                              await ImageUploadHelper.pickImageFromDevice();
+
+                                          setDialogState(
+                                            () => isUploading = false,
+                                          );
+
+                                          if (imagePath != null) {
+                                            setDialogState(() {
+                                              uploadedImagePath = imagePath;
+                                            });
+
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Image uploaded successfully! ✓',
+                                                ),
+                                                backgroundColor: Color(
+                                                  0xFF4CAF50,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                icon:
+                                    isUploading
+                                        ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                        : const Icon(Icons.upload_file),
+                                label: Text(
+                                  isUploading
+                                      ? 'Uploading...'
+                                      : 'Upload Cover Image',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4CAF50),
+                                  minimumSize: const Size(double.infinity, 45),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Display current image info
+                              if (uploadedImagePath.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF4CAF50,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF4CAF50,
+                                      ).withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        ImageUploadHelper.getImageSourceType(
+                                                  uploadedImagePath,
+                                                ) ==
+                                                ImageSourceType.file
+                                            ? Icons.check_circle
+                                            : Icons.folder,
+                                        color: const Color(0xFF4CAF50),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          ImageUploadHelper.getImageSourceType(
+                                                    uploadedImagePath,
+                                                  ) ==
+                                                  ImageSourceType.file
+                                              ? '✓ Image uploaded from device'
+                                              : 'Default: ${uploadedImagePath.split('/').last}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF4CAF50),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: Colors.orange.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: Colors.orange,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Please upload a cover image for your book',
+                                          style: TextStyle(
+                                            color: Colors.orange,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tip: Choose a clear, high-quality image that represents your book well',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white54),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (titleController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a book title'),
-                        backgroundColor: Colors.red,
+                  actions: [
+                    TextButton(
+                      onPressed:
+                          isUploading ? null : () => Navigator.pop(context),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white54),
                       ),
-                    );
-                    return;
-                  }
-
-                  if (imageController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter an image URL or path'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  final book = {
-                    'id':
-                        existingBook?['id'] ??
-                        DateTime.now().millisecondsSinceEpoch.toString(),
-                    'isDefault': existingBook?['isDefault'] ?? false,
-                    'title': titleController.text,
-                    'summary': summaryController.text,
-                    'theme': themeController.text,
-                    'author': authorController.text,
-                    'readTime': int.tryParse(readTimeController.text) ?? 15,
-                    'funFact': funFactController.text,
-                    'image': imageController.text,
-                    'chapters': existingBook?['chapters'] ?? [],
-                  };
-
-                  setState(() {
-                    if (isEdit && index != null) {
-                      allBooks[index] = book;
-                    } else {
-                      allBooks.add(book);
-                    }
-                  });
-
-                  await _saveBooks();
-                  Navigator.pop(context);
-                  await _loadBooks();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(isEdit ? 'Book updated!' : 'Book created!'),
-                      backgroundColor: Colors.green,
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7B4DFF),
+                    if (isEdit && index != null)
+                      TextButton(
+                        onPressed:
+                            isUploading
+                                ? null
+                                : () {
+                                  Navigator.pop(context);
+                                  _manageChapters(index);
+                                },
+                        child: const Text(
+                          'Manage Chapters',
+                          style: TextStyle(color: Color(0xFF4CAF50)),
+                        ),
+                      ),
+                    ElevatedButton(
+                      onPressed:
+                          isUploading
+                              ? null
+                              : () async {
+                                if (titleController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter a book title',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (uploadedImagePath.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please upload a cover image',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final book = {
+                                  'id':
+                                      existingBook?['id'] ??
+                                      DateTime.now().millisecondsSinceEpoch
+                                          .toString(),
+                                  'isDefault':
+                                      existingBook?['isDefault'] ?? false,
+                                  'title': titleController.text,
+                                  'summary': summaryController.text,
+                                  'theme': themeController.text,
+                                  'author': authorController.text,
+                                  'readTime':
+                                      int.tryParse(readTimeController.text) ??
+                                      15,
+                                  'funFact': funFactController.text,
+                                  'image': uploadedImagePath,
+                                  'topic': selectedTopic,
+                                  'chapters': existingBook?['chapters'] ?? [],
+                                };
+
+                                setState(() {
+                                  if (isEdit && index != null) {
+                                    allBooks[index] = book;
+                                  } else {
+                                    allBooks.add(book);
+                                  }
+                                });
+
+                                await _saveBooks();
+                                Navigator.pop(context);
+                                await _loadBooks();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isEdit
+                                          ? 'Book updated!'
+                                          : 'Book created!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7B4DFF),
+                      ),
+                      child: const Text('Save'),
+                    ),
+                  ],
                 ),
-                child: const Text('Save'),
-              ),
-            ],
           ),
     );
   }
@@ -2216,6 +2475,18 @@ class _WatchContentManagementState extends State<WatchContentManagement> {
   List<Map<String, dynamic>> allVideos = [];
   bool _isLoading = true;
 
+  // ADD THIS: Topic definitions (same as in lesson_selection_screen.dart)
+  final List<Map<String, dynamic>> topics = [
+    {'id': 'changes_of_matter', 'title': 'Changes of Matter', 'emoji': '🧪'},
+    {'id': 'water_cycle', 'title': 'Water Cycle', 'emoji': '💧'},
+    {'id': 'photosynthesis', 'title': 'Photosynthesis', 'emoji': '🌱'},
+    {'id': 'solar_system', 'title': 'Solar System', 'emoji': '🪐'},
+    {
+      'id': 'ecosystem_food_web',
+      'title': 'Ecosystem & Food Web',
+      'emoji': '🦁',
+    },
+  ];
   @override
   void initState() {
     super.initState();
@@ -2238,6 +2509,7 @@ class _WatchContentManagementState extends State<WatchContentManagement> {
       'funFact': lesson.funFact,
       'keyTopics': lesson.keyTopics,
       'moreFacts': lesson.moreFacts,
+      'topic': lesson.topic, // ADD THIS LINE
       'quizQuestions':
           lesson.quizQuestions
               .map(
@@ -2335,6 +2607,8 @@ class _WatchContentManagementState extends State<WatchContentManagement> {
     );
   }
 
+  // REPLACE the _showCreateVideoDialog method in WatchContentManagement
+
   void _showCreateVideoDialog({
     Map<String, dynamic>? existingVideo,
     int? index,
@@ -2359,215 +2633,473 @@ class _WatchContentManagementState extends State<WatchContentManagement> {
       text: existingVideo?['funFact'] ?? '',
     );
 
+    String selectedTopic = existingVideo?['topic'] ?? 'changes_of_matter';
+    bool isUploading = false;
+    String uploadedVideoPath = existingVideo?['videoUrl'] ?? '';
+
     showDialog(
       context: context,
+      barrierDismissible: !isUploading,
       builder:
-          (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1C1F3E),
-            title: Text(
-              isEdit ? 'Edit Video Lesson' : 'Create New Video Lesson',
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: const Color(0xFF1C1F3E),
+                  title: Text(
+                    isEdit ? 'Edit Video Lesson' : 'Create New Video Lesson',
                     style: const TextStyle(color: Colors.white),
                   ),
-                  TextField(
-                    controller: emojiController,
-                    decoration: const InputDecoration(
-                      labelText: 'Emoji',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: descriptionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7B4DFF).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF7B4DFF).withOpacity(0.3),
-                      ),
-                    ),
+                  content: SingleChildScrollView(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.video_library,
-                              color: Color(0xFF7B4DFF),
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Video Source',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
                         TextField(
-                          controller: videoUrlController,
+                          controller: titleController,
                           decoration: const InputDecoration(
-                            hintText:
-                                'Enter YouTube URL, video URL, or file path',
-                            hintStyle: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
+                            labelText: 'Title',
+                            labelStyle: TextStyle(color: Colors.white70),
                             enabledBorder: UnderlineInputBorder(
                               borderSide: BorderSide(color: Colors.white54),
                             ),
                           ),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: emojiController,
+                          decoration: const InputDecoration(
+                            labelText: 'Emoji',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+
+                        // Topic Dropdown
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.category,
+                                    color: Color(0xFF4CAF50),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Topic Category',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                value: selectedTopic,
+                                dropdownColor: const Color(0xFF1C1F3E),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2D4E),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                style: const TextStyle(color: Colors.white),
+                                items:
+                                    topics.map((topic) {
+                                      return DropdownMenuItem<String>(
+                                        value: topic['id'] as String,
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              topic['emoji'] as String,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              topic['title'] as String,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    selectedTopic = value!;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Examples:\n• https://www.youtube.com/watch?v=...\n• https://example.com/video.mp4\n• lib/assets/videos/science.mp4',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 11,
-                            height: 1.4,
+
+                        TextField(
+                          controller: descriptionController,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
                           ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+
+                        // VIDEO SOURCE SECTION - UPDATED
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7B4DFF).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF7B4DFF).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.video_library,
+                                    color: Color(0xFF7B4DFF),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Video Source',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Upload from Device Button
+                              ElevatedButton.icon(
+                                onPressed:
+                                    isUploading
+                                        ? null
+                                        : () async {
+                                          setDialogState(
+                                            () => isUploading = true,
+                                          );
+
+                                          String? videoPath =
+                                              await VideoUploadHelper.pickVideoFromDevice();
+
+                                          setDialogState(
+                                            () => isUploading = false,
+                                          );
+
+                                          if (videoPath != null) {
+                                            setDialogState(() {
+                                              uploadedVideoPath = videoPath;
+                                              videoUrlController.text =
+                                                  videoPath;
+                                            });
+
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Video uploaded successfully! ✓',
+                                                ),
+                                                backgroundColor: Color(
+                                                  0xFF4CAF50,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                icon:
+                                    isUploading
+                                        ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                        : const Icon(Icons.upload_file),
+                                label: Text(
+                                  isUploading
+                                      ? 'Uploading...'
+                                      : 'Upload from Device',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF7B4DFF),
+                                  minimumSize: const Size(double.infinity, 45),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+                              const Row(
+                                children: [
+                                  Expanded(
+                                    child: Divider(color: Colors.white24),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      'OR',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Divider(color: Colors.white24),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // URL Input
+                              TextField(
+                                controller: videoUrlController,
+                                enabled: !isUploading,
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter YouTube URL or video URL',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.link,
+                                    color: Colors.white54,
+                                    size: 20,
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    uploadedVideoPath = value;
+                                  });
+                                },
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Display current video info
+                              if (uploadedVideoPath.isNotEmpty)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 8),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF4CAF50,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF4CAF50,
+                                      ).withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        VideoUploadHelper.getVideoSourceType(
+                                                  uploadedVideoPath,
+                                                ) ==
+                                                VideoSourceType.network
+                                            ? Icons.cloud
+                                            : Icons.phone_android,
+                                        color: const Color(0xFF4CAF50),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          VideoUploadHelper.getVideoSourceType(
+                                                    uploadedVideoPath,
+                                                  ) ==
+                                                  VideoSourceType.network
+                                              ? 'URL: ${uploadedVideoPath.length > 30 ? uploadedVideoPath.substring(0, 30) + "..." : uploadedVideoPath}'
+                                              : 'Video uploaded from device',
+                                          style: const TextStyle(
+                                            color: Color(0xFF4CAF50),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Examples:\n• https://www.youtube.com/watch?v=...\n• https://example.com/video.mp4\n• Or upload from your device',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: durationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Duration (e.g., 5 min)',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        TextField(
+                          controller: funFactController,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Fun Fact',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white54),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: durationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (e.g., 5 min)',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
+                  actions: [
+                    TextButton(
+                      onPressed:
+                          isUploading ? null : () => Navigator.pop(context),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white54),
                       ),
                     ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  TextField(
-                    controller: funFactController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Fun Fact',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54),
+                    ElevatedButton(
+                      onPressed:
+                          isUploading
+                              ? null
+                              : () async {
+                                if (titleController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter a video title',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (videoUrlController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter a video URL or upload a video',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final video = {
+                                  'id':
+                                      existingVideo?['id'] ??
+                                      DateTime.now().millisecondsSinceEpoch
+                                          .toString(),
+                                  'isDefault':
+                                      existingVideo?['isDefault'] ?? false,
+                                  'title': titleController.text,
+                                  'emoji': emojiController.text,
+                                  'description': descriptionController.text,
+                                  'videoUrl': videoUrlController.text,
+                                  'duration': durationController.text,
+                                  'funFact': funFactController.text,
+                                  'topic': selectedTopic,
+                                  'keyTopics':
+                                      existingVideo?['keyTopics'] ?? [],
+                                  'moreFacts':
+                                      existingVideo?['moreFacts'] ?? [],
+                                  'quizQuestions':
+                                      existingVideo?['quizQuestions'] ?? [],
+                                };
+
+                                setState(() {
+                                  if (isEdit && index != null) {
+                                    allVideos[index] = video;
+                                  } else {
+                                    allVideos.add(video);
+                                  }
+                                });
+
+                                await _saveVideos();
+                                Navigator.pop(context);
+                                await _loadVideos();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isEdit
+                                          ? 'Video updated!'
+                                          : 'Video created!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7B4DFF),
                       ),
+                      child: const Text('Save'),
                     ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white54),
+                  ],
                 ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (titleController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a video title'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (videoUrlController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a video URL or path'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  final video = {
-                    'id':
-                        existingVideo?['id'] ??
-                        DateTime.now().millisecondsSinceEpoch.toString(),
-                    'isDefault': existingVideo?['isDefault'] ?? false,
-                    'title': titleController.text,
-                    'emoji': emojiController.text,
-                    'description': descriptionController.text,
-                    'videoUrl': videoUrlController.text,
-                    'duration': durationController.text,
-                    'funFact': funFactController.text,
-                    'keyTopics': existingVideo?['keyTopics'] ?? [],
-                    'moreFacts': existingVideo?['moreFacts'] ?? [],
-                    'quizQuestions': existingVideo?['quizQuestions'] ?? [],
-                  };
-
-                  setState(() {
-                    if (isEdit && index != null) {
-                      allVideos[index] = video;
-                    } else {
-                      allVideos.add(video);
-                    }
-                  });
-
-                  await _saveVideos();
-                  Navigator.pop(context);
-                  await _loadVideos();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isEdit ? 'Video updated!' : 'Video created!',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7B4DFF),
-                ),
-                child: const Text('Save'),
-              ),
-            ],
           ),
     );
   }

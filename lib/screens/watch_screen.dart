@@ -1,10 +1,12 @@
-// watch_screen.dart - UPDATED VERSION
+// watch_screen.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:elearningapp_flutter/quiz_data/video_quiz_screen.dart';
 import 'package:elearningapp_flutter/data/video_data.dart';
+import 'dart:io';
+import 'package:elearningapp_flutter/helpers/video_upload_helper.dart';
 
 class WatchScreen extends StatefulWidget {
   final int initialLessonIndex;
@@ -30,7 +32,7 @@ class _WatchScreenState extends State<WatchScreen>
   Map<int, int> lessonPoints = {};
   int totalPoints = 0;
 
-  // NEW: Store loaded lessons from SharedPreferences
+  // Store loaded lessons from SharedPreferences
   List<Map<String, dynamic>> allLessons = [];
   bool _isLoadingLessons = true;
 
@@ -39,10 +41,10 @@ class _WatchScreenState extends State<WatchScreen>
     super.initState();
     currentLessonIndex = widget.initialLessonIndex;
     _tabController = TabController(length: 4, vsync: this);
-    _loadLessonsFromStorage(); // Load lessons first
+    _loadLessonsFromStorage();
   }
 
-  // NEW: Load lessons from SharedPreferences
+  // Load lessons from SharedPreferences
   Future<void> _loadLessonsFromStorage() async {
     setState(() => _isLoadingLessons = true);
     final prefs = await SharedPreferences.getInstance();
@@ -114,7 +116,7 @@ class _WatchScreenState extends State<WatchScreen>
     }
   }
 
-  // NEW: Convert ScienceLesson to Map
+  // Convert ScienceLesson to Map - FIXED WITH TOPIC
   Map<String, dynamic> _lessonToMap(
     ScienceLesson lesson, {
     bool isDefault = false,
@@ -131,6 +133,7 @@ class _WatchScreenState extends State<WatchScreen>
       'funFact': lesson.funFact,
       'keyTopics': lesson.keyTopics,
       'moreFacts': lesson.moreFacts,
+      'topic': lesson.topic, // FIXED: Added topic field
       'quizQuestions':
           lesson.quizQuestions
               .map(
@@ -146,46 +149,135 @@ class _WatchScreenState extends State<WatchScreen>
     };
   }
 
+  // REPLACE the _loadVideo method in WatchScreen
+
   void _loadVideo(String url) {
-    if (url.startsWith('lib/assets/videos/')) {
-      _videoController =
-          VideoPlayerController.asset(url)
-            ..initialize().then((_) {
-              setState(() {
-                _isInitialized = true;
-              });
-            })
-            ..addListener(() {
-              if (mounted) {
-                setState(() {
-                  if (_videoController.value.position.inSeconds >
-                          (_videoController.value.duration.inSeconds * 0.9) &&
-                      !completedLessons.contains(currentLessonIndex)) {
-                    _markLessonComplete();
-                  }
-                });
-              }
-            });
-    } else {
-      _videoController =
-          VideoPlayerController.networkUrl(Uri.parse(url))
-            ..initialize().then((_) {
-              setState(() {
-                _isInitialized = true;
-              });
-            })
-            ..addListener(() {
-              if (mounted) {
-                setState(() {
-                  if (_videoController.value.position.inSeconds >
-                          (_videoController.value.duration.inSeconds * 0.9) &&
-                      !completedLessons.contains(currentLessonIndex)) {
-                    _markLessonComplete();
-                  }
-                });
-              }
-            });
+    final videoSourceType = VideoUploadHelper.getVideoSourceType(url);
+
+    // Dispose previous controller if exists
+    if (_isInitialized) {
+      _videoController.dispose();
     }
+
+    setState(() {
+      _isInitialized = false;
+    });
+
+    switch (videoSourceType) {
+      case VideoSourceType.asset:
+        // Asset video (lib/assets/videos/...)
+        _videoController =
+            VideoPlayerController.asset(url)
+              ..initialize()
+                  .then((_) {
+                    if (mounted) {
+                      setState(() {
+                        _isInitialized = true;
+                      });
+                    }
+                  })
+                  .catchError((error) {
+                    print('Error loading asset video: $error');
+                    _showVideoErrorDialog('Failed to load video from assets');
+                  })
+              ..addListener(_videoListener);
+        break;
+
+      case VideoSourceType.network:
+        // Network URL (http/https)
+        _videoController =
+            VideoPlayerController.networkUrl(Uri.parse(url))
+              ..initialize()
+                  .then((_) {
+                    if (mounted) {
+                      setState(() {
+                        _isInitialized = true;
+                      });
+                    }
+                  })
+                  .catchError((error) {
+                    print('Error loading network video: $error');
+                    _showVideoErrorDialog(
+                      'Failed to load video from URL. Check your internet connection.',
+                    );
+                  })
+              ..addListener(_videoListener);
+        break;
+
+      case VideoSourceType.file:
+        // Local file from device
+        final file = File(url);
+        if (file.existsSync()) {
+          _videoController =
+              VideoPlayerController.file(file)
+                ..initialize()
+                    .then((_) {
+                      if (mounted) {
+                        setState(() {
+                          _isInitialized = true;
+                        });
+                      }
+                    })
+                    .catchError((error) {
+                      print('Error loading local video: $error');
+                      _showVideoErrorDialog('Failed to load video file');
+                    })
+                ..addListener(_videoListener);
+        } else {
+          _showVideoErrorDialog('Video file not found');
+        }
+        break;
+
+      default:
+        _showVideoErrorDialog('Invalid video source');
+        break;
+    }
+  }
+
+  // Add this video listener method
+  void _videoListener() {
+    if (mounted) {
+      setState(() {
+        if (_videoController.value.position.inSeconds >
+                (_videoController.value.duration.inSeconds * 0.9) &&
+            !completedLessons.contains(currentLessonIndex)) {
+          _markLessonComplete();
+        }
+      });
+    }
+  }
+
+  // Add this error dialog method
+  void _showVideoErrorDialog(String message) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1C1F3E),
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Video Error', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+            content: Text(
+              message,
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(color: Color(0xFF7B4DFF)),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   Future<void> _loadExistingNote() async {
@@ -306,7 +398,7 @@ class _WatchScreenState extends State<WatchScreen>
     }
   }
 
-  // NEW: Convert Map back to ScienceLesson for quiz
+  // Convert Map back to ScienceLesson for quiz - FIXED WITH TOPIC
   ScienceLesson _mapToLesson(Map<String, dynamic> map) {
     return ScienceLesson(
       title: map['title'] as String,
@@ -317,6 +409,7 @@ class _WatchScreenState extends State<WatchScreen>
       keyTopics: List<String>.from(map['keyTopics'] ?? []),
       funFact: map['funFact'] as String,
       moreFacts: List<String>.from(map['moreFacts'] ?? []),
+      topic: map['topic'] as String, // FIXED: Added topic field
       quizQuestions:
           (map['quizQuestions'] as List)
               .map(
@@ -465,7 +558,6 @@ class _WatchScreenState extends State<WatchScreen>
 
   @override
   Widget build(BuildContext context) {
-    // NEW: Show loading while lessons are being loaded
     if (_isLoadingLessons || allLessons.isEmpty) {
       return Scaffold(
         backgroundColor: const Color(0xFF0D102C),

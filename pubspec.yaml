@@ -30,6 +30,9 @@ dependencies:
   # cloud_firestore: ^4.13.6
    #firebase_core: ^2.24.2
   audioplayers: ^6.5.1
+  file_picker: ^10.3.8  # For picking video files from device
+  path_provider: ^2.0.12  # For getting app directory to save videos
+  path: ^1.8.3  # For path manipulati
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +81,10 @@ flutter:
     - lib/assets/avatars/g3.jpg
     - lib/assets/avatars/g4.jpg
     - lib/assets/avatars/g5.jpg
+    - lib/assets/avatars/teacher1.jpg
+    - lib/assets/avatars/teacher2.jpg
+    - lib/assets/avatars/teacher3.jpg
+    - lib/assets/avatars/teacher4.jpg
     
     - lib/assets/audio/quiz.mp3
     - lib/assets/audio/puzzle.mp3
